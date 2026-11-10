@@ -26,11 +26,11 @@ window.__ModuleLoader__.load({
 		var CSS = [
 			/* 顶部品牌行：大鲸鱼 + 右侧工具 */
 			'[class*="_logoRow"]{',
-			'height:56px!important;',
+			'height:44px!important;',
 			'display:flex!important;',
 			'align-items:center!important;',
 			'gap:8px!important;',
-			'padding:0 4px!important;',
+			'padding:0 2px!important;',
 			'margin:0!important;',
 			'}',
 			/* 宿主在 brand 之后还会重挂载节点，DOM 顺序不可信：用 order 固定「品牌在左、按钮在右」 */
@@ -55,7 +55,7 @@ window.__ModuleLoader__.load({
 			'.cs-iconbtn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06));}',
 			/* 新聊天按钮：贴左、细一点 */
 			'button[class*="_newSession"]{',
-			'height:34px!important;margin-top:6px!important;border-radius:8px!important;',
+			'height:30px!important;margin-top:2px!important;border-radius:8px!important;',
 			'justify-content:flex-start!important;padding-left:12px!important;',
 			'}',
 			/* 宿主自带的面板导航整行隐藏（改由底部浮层提供） */
