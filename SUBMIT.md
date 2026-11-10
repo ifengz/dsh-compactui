@@ -12,7 +12,7 @@
 | 仓库根有 `cordis.patch.yml` | 已提供 |
 | 真实可用代码，非占位 | `client.js` 约 1000 行，实机验证 |
 | 浏览器端 UI 需声明 `dsh.client.platform` | 已声明 `web` |
-| 截图：包目录放 `screenshots.json`（1–8 张） | 已提供 `["sidebar.png","menu.png"]` |
+| 截图：包目录放 `screenshots.json`（1–8 张） | 已提供 6 张：`1-sidebar` → `2-popover` → `2-1-add` → `2-2-promoted` → `3-search` → `3-1-pin` |
 | 官方 `@deepseek-ai/*` 依赖用 peerDependencies | 本插件无任何依赖，无需 peers |
 | 不是纯聚合包（自带行为） | 是插件本体，非聚合包 |
 | `package.json` 的 `repository` / `homepage` / `bugs` | 已填 `github.com/ifengz/dsh-compactUI` |

@@ -33,13 +33,20 @@ window.__ModuleLoader__.load({
 			'padding:0 4px!important;',
 			'margin:0!important;',
 			'}',
+			/* 宿主在 brand 之后还会重挂载节点，DOM 顺序不可信：用 order 固定「品牌在左、按钮在右」 */
+			'[class*="_logoRow"]>[class*="_brand"]{order:0!important;}',
+			/* macOS 的 topStrip 是给窗口红绿灯预留的 52px 空带，压到 30px 并把品牌行贴上去，Windows 不受影响 */
+			'html[data-platform="darwin"] [class*="_topStrip"]{height:36px!important;padding:0 12px 0!important;}',
+			'html[data-platform="darwin"] [class*="_logoRow"]{height:38px!important;margin-top:0!important;}',
+			/* 宿主折叠态行高 36px、无内边距，不要被上面的 56px 顶开 */
+			'html[data-platform="darwin"] [class*="_collapsed"] [class*="_logoRow"]{height:36px!important;margin-top:0!important;padding:0!important;}',
 			'[class*="_logoRow"] [class*="_brandIdentity"]{transform:none!important;}',
 			'[class*="_logoRow"] [class*="_brandMark"] svg{width:26px!important;height:26px!important;}',
 			'[class*="_logoRow"] [class*="_brandName"]{',
 			'font-size:16px!important;font-weight:600!important;letter-spacing:.2px!important;',
 			'}',
 			/* 品牌行右侧工具条 */
-			'.cs-topbar{margin-left:auto;display:flex;align-items:center;gap:2px;}',
+			'.cs-topbar{order:1;flex:none;margin-left:auto;display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag;}',
 			'.cs-iconbtn{',
 			'width:28px;height:28px;border:0;background:transparent;border-radius:6px;',
 			'display:inline-flex;align-items:center;justify-content:center;cursor:pointer;',
@@ -89,13 +96,16 @@ window.__ModuleLoader__.load({
 			'}',
 			'.cs-nav-toggle:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06));}',
 			'.cs-navpop{',
-			'position:fixed;z-index:9999;min-width:196px;padding:6px;',
+			'position:fixed;z-index:9999;min-width:196px;padding:6px;-webkit-app-region:no-drag;',
 			'border-radius:12px;background:var(--dsw-alias-bg-popover,#fff);',
 			'box-shadow:0 0 0 1px rgba(0,0,0,.06);',
 			'display:flex;flex-direction:column;gap:2px;',
 			'}',
 			'.cs-navpop[hidden]{display:none!important;}',
+			/* 浮层打开时把顶部拖拽带临时改成可点：-webkit-app-region:drag 会吞掉鼠标事件，点它上面浮层关不掉 */
+			'html:has(.cs-navpop:not([hidden])) [data-window-drag]{-webkit-app-region:no-drag!important;}',
 			'.cs-navitem{',
+			'box-sizing:border-box;',
 			'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;',
 			'background:transparent;padding:7px 10px;border-radius:8px;font-size:13px;cursor:pointer;',
 			'color:var(--dsw-alias-label-primary,#111);',
@@ -306,6 +316,21 @@ window.__ModuleLoader__.load({
 			}
 		}
 
+		/* 拖拽带里的按钮有时收不到 click（窗口拖拽区会吞事件），pointerdown 与 click 都挂上，400ms 内只算一次 */
+		function bindToggleButton(button) {
+			var last = 0;
+			var fire = function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+				var now = Date.now();
+				if (now - last < 400) return;
+				last = now;
+				toggleNavPopover(button);
+			};
+			button.addEventListener('pointerdown', fire);
+			button.addEventListener('click', fire);
+		}
+
 		/* ---------- 顶部工具条：搜索 + 设置/菜单 ---------- */
 		function ensureTopbar(logo) {
 			var bar = logo.querySelector('.cs-topbar');
@@ -327,10 +352,7 @@ window.__ModuleLoader__.load({
 				menu.title = '插件与工具';
 				menu.setAttribute('aria-label', '插件与工具');
 				menu.appendChild(icon(ICON_MENU));
-				menu.addEventListener('click', function (event) {
-					event.stopPropagation();
-					toggleNavPopover(menu);
-				});
+				bindToggleButton(menu);
 
 				bar.appendChild(search);
 				bar.appendChild(menu);
@@ -509,14 +531,14 @@ window.__ModuleLoader__.load({
 					});
 					window.setTimeout(function () {
 						state.docking = false;
-						if (state.dockedMenus.length > 0) pop.hidden = false;
+						if (state.dockedMenus.length > 0) keepNavPopoverShown();
 					}, 140);
 					var guard = window.setInterval(function () {
 						if (state.dockedMenus.length === 0) {
 							window.clearInterval(guard);
 							return;
 						}
-						if (pop.hidden) pop.hidden = false;
+						if (pop.hidden) keepNavPopoverShown();
 					}, 40);
 					window.setTimeout(function () {
 						window.clearInterval(guard);
@@ -598,25 +620,51 @@ window.__ModuleLoader__.load({
 			});
 		}
 
+		/* 浮层是否"真的开着"：没被本插件定位过、或在视口外，都当作没开，否则点按钮会像没反应 */
+		function popoverOnScreen(pop) {
+			if (pop === null || pop.hidden) return false;
+			if (pop.style.left === '' || pop.style.top === '') return false;
+			var r = pop.getBoundingClientRect();
+			if (r.width < 8 || r.height < 20) return false;
+			return r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+		}
+
+		function placeNavPopover(anchor) {
+			var pop = ensureNavPopover();
+			var rect = anchor.getBoundingClientRect();
+			pop.hidden = false;
+			var box = pop.getBoundingClientRect();
+			var x = Math.max(8, rect.left);
+			var y = rect.top - box.height - 8;
+			if (y < 8) y = rect.bottom + 8;
+			if (x + box.width > window.innerWidth - 8) x = window.innerWidth - box.width - 8;
+			pop.style.left = x + 'px';
+			pop.style.top = y + 'px';
+			return pop;
+		}
+
 		function toggleNavPopover(anchor) {
-			var pop = state.navPopover;
-			if (pop === null) return;
-			if (pop.hidden === false) {
+			var pop = ensureNavPopover();
+			if (pop.hidden === false && popoverOnScreen(pop)) {
 				pop.hidden = true;
 				closeDocked();
 				return;
 			}
 			rebuildNav();
-			var rect = anchor.getBoundingClientRect();
+			placeNavPopover(anchor);
+		}
+
+		/* 宿主的二级菜单被挂到浮层下面时，浮层必须在位；旧的 hidden=false 会让浮层停在视口外 */
+		function keepNavPopoverShown() {
+			var pop = state.navPopover;
+			if (pop === null) return;
+			if (pop.hidden === false && pop.style.left !== '') return;
+			var anchor = document.querySelector('.cs-nav-toggle');
+			if (anchor !== null) {
+				placeNavPopover(anchor);
+				return;
+			}
 			pop.hidden = false;
-			var height = pop.getBoundingClientRect().height;
-			var width = pop.getBoundingClientRect().width;
-			var x = Math.max(8, rect.left);
-			var y = rect.top - height - 8;
-			if (y < 8) y = rect.bottom + 8;
-			if (x + width > window.innerWidth - 8) x = window.innerWidth - width - 8;
-			pop.style.left = x + 'px';
-			pop.style.top = y + 'px';
 		}
 
 		/* 侧栏里「新会话」下方的常驻导航行（由浮层点「添加」而来） */
@@ -888,7 +936,7 @@ window.__ModuleLoader__.load({
 			ensureNavPopover();
 			/* 有二级菜单挂在外面时，浮层必须保持展开（宿主开菜单会顺手关掉它） */
 			if (state.navPopover !== null && state.dockedMenus.length > 0 && state.navPopover.hidden) {
-				state.navPopover.hidden = false;
+				keepNavPopoverShown();
 			}
 			try {
 				ensurePromotedNav(root);
