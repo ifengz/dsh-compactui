@@ -7,5 +7,5 @@ description:
   zh: 把 DSH 侧栏改成 Codex 风格紧凑布局：内联会话搜索、折叠项目也不丢的置顶区、插件与市场入口收进浮层菜单。
 # 可选：GitHub 托管的方地位图，约 96px 显示
 # icon: https://raw.githubusercontent.com/ifengz/dsh-compactUI/main/assets/icon-180.png
-# 可选：预构建 tarball（GitHub Release 托管，https .tgz）
-# tarball: https://github.com/ifengz/dsh-compactUI/releases/latest/download/dsh-compactui.tgz
+# 预构建 tarball（GitHub Release 托管）
+tarball: https://github.com/ifengz/dsh-compactUI/releases/download/v0.5.11/dsh-compactui-0.5.11.tgz
