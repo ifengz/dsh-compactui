@@ -184,6 +184,17 @@ window.__ModuleLoader__.load({
 			'}',
 			'.cs-dockedmenu button:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06))!important;}',
 			'.cs-dockedmenu svg{width:16px!important;height:16px!important;flex:none!important;color:var(--dsw-alias-label-secondary,#6b7280)!important;}',
+			/* ---- 紧凑尺寸（原 dsh-compact-ui 合并进来）：只压间距与按钮，不动布局骨架 ---- */
+			':root{--dsh-composer-stack-gap:4px!important;--dsh-chat-flow-gap:10px!important;--dsh-composer-dock-inset:6px!important;--dsh-tab-hit-inline:6px!important;--dsh-trajectory-toolbar-height:28px!important;}',
+			'div:has(> nav[class*="_panelList"]){--dsh-sidebar-row-padding:8px!important;--dsh-sidebar-inline-padding:6px!important;--dsh-sidebar-label-gap:4px!important;padding:4px 6px!important;}',
+			'nav[class*="_panelList"]{gap:1px!important;margin-bottom:4px!important;}',
+			'[class*="_panelRow"]{min-height:28px!important;padding-top:3px!important;padding-bottom:3px!important;line-height:18px!important;border-radius:6px!important;}',
+			'[class*="_projectRow"]{height:28px!important;}',
+			'[class*="_sessionRow"]{height:26px!important;}',
+			'[class*="_rowActions"]{height:16px!important;}',
+			'button[class*="_md_"]{height:28px!important;}',
+			'button[class*="_sm_"]{height:22px!important;padding-left:7px!important;padding-right:7px!important;font-size:11px!important;line-height:16px!important;border-radius:4px!important;}',
+			'[class*="_card"]{padding-top:6px!important;}',
 		].join('');
 
 		function injectCSS() {
