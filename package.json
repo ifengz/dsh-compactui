@@ -1,0 +1,55 @@
+{
+  "name": "dsh-compactui",
+  "version": "0.5.11",
+  "description": "Codex-style compact sidebar for DeepSeek Harness: big logo with inline search, new chat, a collapsible pinned section that survives collapsed projects, workspaces, and the plugin/market/automation entries folded into a small popover.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "ui",
+    "sidebar",
+    "compact",
+    "codex"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "sidebar.png",
+    "menu.png",
+    "screenshots.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ifengz/dsh-compactUI.git"
+  },
+  "homepage": "https://github.com/ifengz/dsh-compactUI#readme",
+  "bugs": {
+    "url": "https://github.com/ifengz/dsh-compactUI/issues"
+  },
+  "license": "MIT",
+  "author": "ifengz",
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "test": "node --check index.js && node --check client.js"
+  }
+}

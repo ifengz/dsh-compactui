@@ -1,0 +1,11 @@
+# 投稿文件：data/plugins/ifengz__dsh-compactUI.yml
+url: https://github.com/ifengz/dsh-compactUI
+name: ifengz/dsh-compactUI
+category: ui
+description:
+  en: Codex-style compact DSH sidebar with inline session search, a collapsible pinned section that persists across collapsed projects, and plugin/market/automation entries folded into a popover.
+  zh: 把 DSH 侧栏改成 Codex 风格紧凑布局：内联会话搜索、折叠项目也不丢的置顶区、插件与市场入口收进浮层菜单。
+# 可选：GitHub 托管的方地位图，约 96px 显示
+# icon: https://raw.githubusercontent.com/ifengz/dsh-compactUI/main/assets/icon-180.png
+# 可选：预构建 tarball（GitHub Release 托管，https .tgz）
+# tarball: https://github.com/ifengz/dsh-compactUI/releases/latest/download/dsh-compactui.tgz
