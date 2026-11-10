@@ -26,11 +26,11 @@ window.__ModuleLoader__.load({
 		var CSS = [
 			/* 顶部品牌行：大鲸鱼 + 右侧工具 */
 			'[class*="_logoRow"]{',
-			'height:44px!important;',
+			'height:38px!important;',
 			'display:flex!important;',
 			'align-items:center!important;',
 			'gap:8px!important;',
-			'padding:0 2px!important;',
+			'padding:0 4px!important;',
 			'margin:0!important;',
 			'}',
 			/* 宿主在 brand 之后还会重挂载节点，DOM 顺序不可信：用 order 固定「品牌在左、按钮在右」 */
@@ -55,7 +55,7 @@ window.__ModuleLoader__.load({
 			'.cs-iconbtn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.06));}',
 			/* 新聊天按钮：贴左、细一点 */
 			'button[class*="_newSession"]{',
-			'height:30px!important;margin-top:2px!important;border-radius:8px!important;',
+			'height:34px!important;margin-top:6px!important;border-radius:8px!important;',
 			'justify-content:flex-start!important;padding-left:12px!important;',
 			'}',
 			/* 宿主自带的面板导航整行隐藏（改由底部浮层提供） */
@@ -248,6 +248,8 @@ window.__ModuleLoader__.load({
 			promotedKey: '',
 			dockedMenus: [],
 			activeLabel: '',
+			anchorEl: null,
+			sidebarDock: false,
 		lastDockLabel: '',
 		lastDockAt: 0,
 			docking: false,
@@ -476,7 +478,7 @@ window.__ModuleLoader__.load({
 			state.lastDockLabel = label;
 			state.lastDockAt = Date.now();
 			if (itemRect === null) return;
-			var joined = popRect !== null && popRect.width > 0;
+			var joined = popRect !== null && popRect.width > 0 && state.anchorEl === null;
 			var left = joined ? popRect.left : itemRect.left;
 			node.classList.add('cs-dockedmenu');
 			node.dataset.csLabel = label;
@@ -490,10 +492,15 @@ window.__ModuleLoader__.load({
 				if (state.navPopover !== null) state.navPopover.classList.add('has-dock');
 			}
 			if (state.dockedMenus.indexOf(node) < 0) state.dockedMenus.push(node);
+			if (state.sidebarDock && state.navPopover !== null) state.navPopover.hidden = true;
+			state.anchorEl = null;
 		}
 
 		function closeDocked() {
 			state.activeLabel = '';
+			state.sidebarDock = false;
+			state.lastDockLabel = '';
+			state.lastDockAt = 0;
 			if (state.navPopover !== null) state.navPopover.classList.remove('has-dock');
 			if (state.dockedMenus.length === 0) return;
 			state.dockedMenus = [];
@@ -545,8 +552,9 @@ window.__ModuleLoader__.load({
 				state.docking = false;
 				state.lastDockLabel = '';
 				state.lastDockAt = 0;
+				var wasSidebarDock = state.sidebarDock;
 				closeDocked();
-				if (state.navPopover !== null) state.navPopover.hidden = false;
+				if (state.navPopover !== null && state.anchorEl === null && !wasSidebarDock) state.navPopover.hidden = false;
 				return;
 			}
 			window.__csLastActivate = { label: label, docking: state.docking, dockUntil: state.dockUntil, t: Date.now() };
@@ -559,10 +567,11 @@ window.__ModuleLoader__.load({
 				state.dockUntil = Date.now() + 900;
 				state.activeLabel = '';
 				closeDocked();
-				if (pop !== null) pop.hidden = false;
+				if (pop !== null && state.anchorEl === null) pop.hidden = false;
 				return;
 			}
-			var itemRect = item.getBoundingClientRect();
+			var anchorEl = state.anchorEl !== null && state.anchorEl.isConnected ? state.anchorEl : item;
+			var itemRect = anchorEl.getBoundingClientRect();
 			var handled = [];
 			state.docking = true;
 				state.dockUntil = Date.now() + 700;
@@ -620,6 +629,8 @@ window.__ModuleLoader__.load({
 				}
 				observer.disconnect();
 				state.docking = false;
+				/* 刚刚是「主动收起二级菜单」，正在跑的轮询不能再顺手关浮层 */
+				if (Date.now() < state.dockUntil) return;
 				if (state.dockedMenus.length === 0) {
 					state.activeLabel = '';
 			pop.hidden = true;
@@ -653,6 +664,7 @@ window.__ModuleLoader__.load({
 					if (event.target.closest('.cs-navitem-add') !== null) return;
 					event.preventDefault();
 					event.stopPropagation();
+					state.anchorEl = null;
 					activateNavItem(item, label);
 				});
 
@@ -716,6 +728,7 @@ window.__ModuleLoader__.load({
 
 		/* 宿主的二级菜单被挂到浮层下面时，浮层必须在位；旧的 hidden=false 会让浮层停在视口外 */
 		function keepNavPopoverShown() {
+			if (state.sidebarDock) return;
 			var pop = state.navPopover;
 			if (pop === null) return;
 			if (pop.hidden === false && pop.style.left !== '') return;
@@ -779,7 +792,13 @@ window.__ModuleLoader__.load({
 				item.appendChild(el('span', 'cs-navrow-label', label));
 				item.addEventListener('click', function (event) {
 					if (event.target.closest('.cs-navrow-minus') !== null) return;
-					clickNavLabel(label);
+					state.anchorEl = item;
+					state.sidebarDock = true;
+					if (state.navPopover !== null) state.navPopover.hidden = true;
+					activateNavItem(item, label);
+					window.setTimeout(function () {
+						state.anchorEl = null;
+					}, 1500);
 				});
 
 				var minus = el('button', 'cs-navrow-minus');
