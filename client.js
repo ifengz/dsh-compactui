@@ -529,6 +529,9 @@ window.__ModuleLoader__.load({
 			}
 			if (dockedSame === null && state.lastDockLabel === label) dockedSame = true;
 			if (dockedSame !== null) {
+				/* 收起二级菜单时先压住所有关闭路径，避免正在跑的 settle 顺手把浮层关掉 */
+				state.dockUntil = Date.now() + 1200;
+				state.docking = false;
 				state.lastDockLabel = '';
 				state.lastDockAt = 0;
 				closeDocked();
