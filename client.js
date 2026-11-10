@@ -104,6 +104,8 @@ window.__ModuleLoader__.load({
 			'.cs-navpop[hidden]{display:none!important;}',
 			/* 浮层打开时把顶部拖拽带临时改成可点：-webkit-app-region:drag 会吞掉鼠标事件，点它上面浮层关不掉 */
 			'html:has(.cs-navpop:not([hidden])) [data-window-drag]{-webkit-app-region:no-drag!important;}',
+			/* Windows 没有 data-window-drag，拖拽带挂在 frame 的 ::before 上，浮层开着时也要放行点击 */
+			'html[data-windows-titlebar]:has(.cs-navpop:not([hidden])) [class*="_frame"]::before{-webkit-app-region:no-drag!important;}',
 			'.cs-navitem{',
 			'box-sizing:border-box;',
 			'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;',
@@ -234,6 +236,7 @@ window.__ModuleLoader__.load({
 			pinnedKey: '',
 			promotedKey: '',
 			dockedMenus: [],
+			activeLabel: '',
 			docking: false,
 			dockUntil: 0,
 			seeded: false,
@@ -373,6 +376,7 @@ window.__ModuleLoader__.load({
 		function ensureNavPopover() {
 			if (state.navPopover !== null && state.navPopover.isConnected) return state.navPopover;
 			var pop = el('div', 'cs-navpop');
+			state.activeLabel = '';
 			pop.hidden = true;
 			document.body.appendChild(pop);
 			state.navPopover = pop;
@@ -455,11 +459,12 @@ window.__ModuleLoader__.load({
 			return list;
 		}
 
-		function dockPopup(node, itemRect, popRect) {
+		function dockPopup(node, itemRect, popRect, label) {
 			if (itemRect === null) return;
 			var joined = popRect !== null && popRect.width > 0;
 			var left = joined ? popRect.left : itemRect.left;
 			node.classList.add('cs-dockedmenu');
+			node.dataset.csLabel = label;
 			node.style.setProperty('position', 'fixed', 'important');
 			node.style.setProperty('left', left + 'px', 'important');
 			node.style.setProperty('top', (joined ? popRect.bottom : itemRect.bottom + 4) + 'px', 'important');
@@ -473,13 +478,19 @@ window.__ModuleLoader__.load({
 		}
 
 		function closeDocked() {
+			state.activeLabel = '';
 			if (state.navPopover !== null) state.navPopover.classList.remove('has-dock');
 			if (state.dockedMenus.length === 0) return;
 			state.dockedMenus = [];
 			try {
-				document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-				document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-				document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+				var fire = function (type) {
+					var ev = new MouseEvent(type, { bubbles: true });
+					ev.__csSynthetic = true;
+					document.body.dispatchEvent(ev);
+				};
+				fire('mousedown');
+				fire('mouseup');
+				fire('click');
 			} catch (error) {
 				/* 忽略 */
 			}
@@ -504,9 +515,19 @@ window.__ModuleLoader__.load({
 
 		/* 点浮层条目：宿主一旦插入二级菜单，立刻先藏起来，摆好位置再显示，避免闪一下 */
 		function activateNavItem(item, label) {
+			window.__csLastActivate = { label: label, docking: state.docking, dockUntil: state.dockUntil, t: Date.now() };
 			var pop = state.navPopover;
 			if (pop === null) return;
 			if (state.docking) return;
+			var sameDock = document.querySelector('.cs-dockedmenu[data-cs-label="' + label + '"]');
+			if (sameDock !== null) {
+				window.__csGuardHit = label;
+				state.dockUntil = Date.now() + 900;
+				state.activeLabel = '';
+				closeDocked();
+				if (pop !== null) pop.hidden = false;
+				return;
+			}
 			var itemRect = item.getBoundingClientRect();
 			var handled = [];
 			state.docking = true;
@@ -526,8 +547,9 @@ window.__ModuleLoader__.load({
 					pop.hidden = false;
 					var popRect = pop.getBoundingClientRect();
 					handled.forEach(function (node) {
-						dockPopup(node, itemRect, popRect);
+						dockPopup(node, itemRect, popRect, label);
 						node.style.removeProperty('visibility');
+					state.activeLabel = label;
 					});
 					window.setTimeout(function () {
 						state.docking = false;
@@ -565,7 +587,8 @@ window.__ModuleLoader__.load({
 				observer.disconnect();
 				state.docking = false;
 				if (state.dockedMenus.length === 0) {
-					pop.hidden = true;
+					state.activeLabel = '';
+			pop.hidden = true;
 					closeDocked();
 				}
 			};
@@ -646,7 +669,8 @@ window.__ModuleLoader__.load({
 		function toggleNavPopover(anchor) {
 			var pop = ensureNavPopover();
 			if (pop.hidden === false && popoverOnScreen(pop)) {
-				pop.hidden = true;
+				state.activeLabel = '';
+			pop.hidden = true;
 				closeDocked();
 				return;
 			}
@@ -991,6 +1015,7 @@ window.__ModuleLoader__.load({
 				'click',
 				function (event) {
 					var pop = state.navPopover;
+					if (event.__csSynthetic) return;
 					if (state.docking || Date.now() < state.dockUntil) return;
 					if (pop === null || pop.hidden) return;
 					if (event.target === null || event.target.closest === undefined) return;
@@ -1010,7 +1035,8 @@ window.__ModuleLoader__.load({
 						}, 160);
 						return;
 					}
-					pop.hidden = true;
+					state.activeLabel = '';
+			pop.hidden = true;
 					closeDocked();
 				},
 				true,
@@ -1021,6 +1047,7 @@ window.__ModuleLoader__.load({
 				'pointerdown',
 				function (event) {
 					var pop = state.navPopover;
+					if (event.__csSynthetic) return;
 					if (state.docking || Date.now() < state.dockUntil) return;
 					if (pop === null || pop.hidden) return;
 					if (event.target === null || event.target.closest === undefined) return;
@@ -1029,7 +1056,8 @@ window.__ModuleLoader__.load({
 					for (var i = 0; i < state.dockedMenus.length; i++) {
 						if (state.dockedMenus[i].contains(event.target)) return;
 					}
-					pop.hidden = true;
+					state.activeLabel = '';
+			pop.hidden = true;
 					closeDocked();
 				},
 				true,
