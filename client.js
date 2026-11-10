@@ -237,6 +237,8 @@ window.__ModuleLoader__.load({
 			promotedKey: '',
 			dockedMenus: [],
 			activeLabel: '',
+		lastDockLabel: '',
+		lastDockAt: 0,
 			docking: false,
 			dockUntil: 0,
 			seeded: false,
@@ -460,6 +462,8 @@ window.__ModuleLoader__.load({
 		}
 
 		function dockPopup(node, itemRect, popRect, label) {
+			state.lastDockLabel = label;
+			state.lastDockAt = Date.now();
 			if (itemRect === null) return;
 			var joined = popRect !== null && popRect.width > 0;
 			var left = joined ? popRect.left : itemRect.left;
@@ -515,6 +519,22 @@ window.__ModuleLoader__.load({
 
 		/* 点浮层条目：宿主一旦插入二级菜单，立刻先藏起来，摆好位置再显示，避免闪一下 */
 		function activateNavItem(item, label) {
+			/* 这一条已经有二级菜单挂着：再点一次就是把它收回去 */
+			var dockedSame = null;
+			for (var qi = 0; qi < state.dockedMenus.length; qi++) {
+				if (state.dockedMenus[qi].dataset.csLabel === label) {
+					dockedSame = state.dockedMenus[qi];
+					break;
+				}
+			}
+			if (dockedSame === null && state.lastDockLabel === label) dockedSame = true;
+			if (dockedSame !== null) {
+				state.lastDockLabel = '';
+				state.lastDockAt = 0;
+				closeDocked();
+				if (state.navPopover !== null) state.navPopover.hidden = false;
+				return;
+			}
 			window.__csLastActivate = { label: label, docking: state.docking, dockUntil: state.dockUntil, t: Date.now() };
 			var pop = state.navPopover;
 			if (pop === null) return;
@@ -617,6 +637,8 @@ window.__ModuleLoader__.load({
 				}
 				item.addEventListener('click', function (event) {
 					if (event.target.closest('.cs-navitem-add') !== null) return;
+					event.preventDefault();
+					event.stopPropagation();
 					activateNavItem(item, label);
 				});
 
@@ -958,6 +980,21 @@ window.__ModuleLoader__.load({
 			if (logo !== null) ensureTopbar(logo);
 			disposeFootMenu(root);
 			ensureNavPopover();
+			/* 宿主把自己的菜单收掉时（点空白关闭），浮层要一起收，别让用户点第二次 */
+			if (state.dockedMenus.length > 0) {
+				var anyAlive = false;
+				for (var di = 0; di < state.dockedMenus.length; di++) {
+					if (state.dockedMenus[di].isConnected) {
+						anyAlive = true;
+						break;
+					}
+				}
+				if (!anyAlive && (state.navPopover === null || state.navPopover.hidden)) {
+					state.dockedMenus = [];
+					state.activeLabel = '';
+					if (state.navPopover !== null) state.navPopover.classList.remove('has-dock');
+				}
+			}
 			/* 有二级菜单挂在外面时，浮层必须保持展开（宿主开菜单会顺手关掉它） */
 			if (state.navPopover !== null && state.dockedMenus.length > 0 && state.navPopover.hidden) {
 				keepNavPopoverShown();
