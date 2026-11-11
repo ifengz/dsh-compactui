@@ -1,6 +1,6 @@
 {
   "name": "dsh-compactui",
-  "version": "0.6.11",
+  "version": "0.6.18",
   "description": "Codex-style compact sidebar for DeepSeek Harness: big logo with inline search, new chat, a collapsible pinned section that survives collapsed projects, workspaces, and the plugin/market/automation entries folded into a small popover.",
   "keywords": [
     "dsh",
@@ -34,11 +34,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ifengz/dsh-compactUI.git"
+    "url": "git+https://github.com/ifengz/dsh-compactui.git"
   },
-  "homepage": "https://github.com/ifengz/dsh-compactUI#readme",
+  "homepage": "https://github.com/ifengz/dsh-compactui#readme",
   "bugs": {
-    "url": "https://github.com/ifengz/dsh-compactUI/issues"
+    "url": "https://github.com/ifengz/dsh-compactui/issues"
   },
   "license": "MIT",
   "author": "ifengz",

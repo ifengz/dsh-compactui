@@ -10,6 +10,10 @@ window.__ModuleLoader__.load({
 		/* 置顶列表持久化：折叠项目会把会话行从 DOM 卸载，仅靠扫描会丢条目 */
 		var STORE_KEY = 'dsh-compactui:pinned';
 		var PROMOTE_KEY = 'dsh-compactui:promoted';
+		/* 原生布局：不改插件启用状态，只在本页即时撤掉注入样式与代理节点 */
+		var NATIVE_KEY = 'dsh-compactui:native';
+		var MINI_STYLE_ID = PLUGIN_ID + ':mini';
+		var CHIP_CLASS = 'cs-native-entry';
 
 		/* 宿主 class 带构建期哈希，全部按稳定局部片段匹配 */
 		var S = {
@@ -202,13 +206,62 @@ window.__ModuleLoader__.load({
 			'[class*="_card"]{padding-top:6px!important;}',
 		].join('');
 
-		function injectCSS() {
-			if (document.getElementById(STYLE_ID) !== null) return;
-			var style = document.createElement('style');
-			style.id = STYLE_ID;
-			style.textContent = CSS;
-			document.head.appendChild(style);
+		/* 原生模式：品牌行右上角一枚带文字的按钮，点它回紧凑布局 */
+		var MINI_CSS = [
+			'.cs-native-entry{',
+			'order:99;flex:none;margin-left:auto;',
+			'height:24px;padding:0 9px;border:0;border-radius:6px;cursor:pointer;',
+			'display:inline-flex;align-items:center;gap:4px;',
+			'font-size:12px;line-height:1;white-space:nowrap;',
+			'background:rgba(47,111,237,.10);color:#2f6fed;',
+			'}',
+			'.cs-native-entry:hover{background:rgba(47,111,237,.18);}',
+			'.cs-native-entry>svg{width:14px;height:14px;flex:none;}',
+		].join('');
+
+		function ensureStyle(id, text) {
+			var node = document.getElementById(id);
+			if (node === null) {
+				node = document.createElement('style');
+				node.id = id;
+				document.head.appendChild(node);
+			}
+			if (node.textContent !== text) node.textContent = text;
+		}
+
+		function applyStyles() {
+			if (state.native) {
+				var main = document.getElementById(STYLE_ID);
+				if (main !== null) main.remove();
+				ensureStyle(MINI_STYLE_ID, MINI_CSS);
+				document.documentElement.removeAttribute(ATTR);
+				return;
+			}
+			ensureStyle(STYLE_ID, CSS);
+			var mini = document.getElementById(MINI_STYLE_ID);
+			if (mini !== null) mini.remove();
 			document.documentElement.setAttribute(ATTR, '1');
+		}
+
+		function loadNative() {
+			try {
+				return localStorage.getItem(NATIVE_KEY) === '1';
+			} catch (error) {
+				return false;
+			}
+		}
+
+		function saveNative(flag) {
+			try {
+				if (flag) localStorage.setItem(NATIVE_KEY, '1');
+				else localStorage.removeItem(NATIVE_KEY);
+			} catch (error) {
+				/* 存不下就只在本次页面有效 */
+			}
+		}
+
+		function injectCSS() {
+			applyStyles();
 		}
 
 		function el(tag, cls, text) {
@@ -244,12 +297,15 @@ window.__ModuleLoader__.load({
 		var ICON_MINUS = ['M6 12h12'];
 		var ICON_PLUS = ['M12 6v12', 'M6 12h12'];
 		var ICON_CHECK = ['M5 12.5l4.5 4.5L19 7'];
-		var ICON_REFRESH = ['M20 12a8 8 0 1 1-2.6-5.85', 'M20 4v5h-5'];
+		var ICON_GRID = ['M4 5h6v6H4z', 'M14 5h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'];
 
 		var state = {
 			root: null,
 			navPopover: null,
 			searchBox: null,
+			native: false,
+			moreHooked: false,
+			moreTimer: 0,
 			pinnedKey: '',
 			promotedKey: '',
 			dockedMenus: [],
@@ -698,36 +754,21 @@ window.__ModuleLoader__.load({
 				pop.appendChild(item);
 			});
 
-			/* 最后一行：重新加载界面（插件装卸后不必关掉整个 DSH） */
+			/* 倒数第二行：原生/紧凑即时切换（停用插件要重启，这里一键回原生） */
 			pop.appendChild(el('div', 'cs-navsep'));
-			var reload = el('div', 'cs-navitem cs-navreload');
-			reload.setAttribute('role', 'button');
-			reload.setAttribute('tabindex', '0');
-			reload.title = '重新加载界面（插件启用/停用后生效）';
-			reload.appendChild(icon(ICON_REFRESH));
-			reload.appendChild(el('span', 'cs-navitem-label', '重新加载界面'));
-			reload.addEventListener('click', function (event) {
+			var layout = el('div', 'cs-navitem cs-navreload');
+			layout.setAttribute('role', 'button');
+			layout.setAttribute('tabindex', '0');
+			layout.title = '立即切回原生侧栏，不需要重载或重启';
+			layout.appendChild(icon(ICON_GRID));
+			layout.appendChild(el('span', 'cs-navitem-label', '切换为原生布局'));
+			layout.addEventListener('click', function (event) {
 				event.preventDefault();
 				event.stopPropagation();
-				reloadUi();
+				pop.hidden = true;
+				setNative(true);
 			});
-			pop.appendChild(reload);
-		}
-
-		/* 有回合正在跑（发送键变成停止）时先问一句 */
-		function turnRunning() {
-			var buttons = document.querySelectorAll('button');
-			for (var i = 0; i < buttons.length; i += 1) {
-				var b = buttons[i];
-				var text = (b.getAttribute('aria-label') || '') + (b.getAttribute('title') || '');
-				if (/停止|中止|Stop/i.test(text)) return true;
-			}
-			return false;
-		}
-
-		function reloadUi() {
-			if (turnRunning() && !window.confirm('有会话正在运行，重新加载界面会中断当前显示（会话本身不会丢）。继续吗？')) return;
-			window.location.reload();
+			pop.appendChild(layout);
 		}
 
 		/* 浮层是否"真的开着"：没被本插件定位过、或在视口外，都当作没开，否则点按钮会像没反应 */
@@ -1043,11 +1084,155 @@ window.__ModuleLoader__.load({
 			});
 		}
 
+		/* ---------- 原生 / 紧凑 即时切换（不需要重载，也不改插件启用状态） ---------- */
+
+		/* 原生布局下，入口塞进宿主「更多」二级菜单；只有菜单结构变了才退回品牌行按钮 */
+		function ensureNativeChip(root) {
+			var entry = document.querySelector('.' + CHIP_CLASS);
+			if (!state.native) {
+				if (entry !== null) entry.remove();
+				return;
+			}
+			if (entry !== null && entry.isConnected) return;
+			if (root === null) return;
+			var logo = root.querySelector(S.logo);
+			if (logo === null) return;
+			entry = el('button', CHIP_CLASS);
+			entry.type = 'button';
+			entry.title = '切回紧凑布局';
+			entry.setAttribute('aria-label', '切回紧凑布局');
+			entry.appendChild(icon(ICON_GRID));
+			entry.appendChild(el('span', null, '紧凑布局'));
+			entry.addEventListener('click', function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+				setNative(false);
+			});
+			logo.appendChild(entry);
+		}
+
+		function hostMoreButton() {
+			var list = [].slice.call(document.querySelectorAll('button[role="menuitem"]'));
+			var visible = list.filter(function (node) {
+				if (node.closest('.cs-more-entry') !== null) return false;
+				var rect = node.getBoundingClientRect();
+				return rect.width > 20 && rect.height > 10 && rect.bottom > 0 && rect.top < window.innerHeight;
+			});
+			return visible.length > 0 ? visible[visible.length - 1] : null;
+		}
+
+		function injectMoreEntry() {
+			if (!state.native) return true;
+			if (document.querySelector('.cs-more-entry') !== null) return true;
+			var button = hostMoreButton();
+			if (button === null || button.parentNode === null) return false;
+			var wrap = button.parentNode;
+			var host = wrap.parentNode;
+			if (host === null) return false;
+			var clone = wrap.cloneNode(true);
+			var item = clone.querySelector('button[role="menuitem"]');
+			if (item === null) return false;
+			clone.classList.add('cs-more-entry');
+			var labels = clone.querySelectorAll('[class*="_itemLabel"]');
+			if (labels.length > 0) labels[labels.length - 1].textContent = '切回紧凑布局';
+			else item.textContent = '切回紧凑布局';
+			item.setAttribute('aria-label', '切回紧凑布局');
+			item.setAttribute('title', '切回紧凑布局');
+			item.addEventListener('click', function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+				document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+				setNative(false);
+			});
+			item.addEventListener('pointerdown', function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+			});
+			clone.addEventListener('pointerdown', function (event) {
+				event.stopPropagation();
+			});
+			host.appendChild(clone);
+			var fallback = document.querySelector('.' + CHIP_CLASS);
+			if (fallback !== null) fallback.remove();
+			return true;
+		}
+
+		function watchMoreMenu() {
+			if (state.moreHooked) return;
+			state.moreHooked = true;
+			document.addEventListener('pointerdown', function (event) {
+				if (!state.native) return;
+				var target = event.target;
+				var row = target !== null && target.closest ? target.closest(S.panelRow) : null;
+				if (row === null || (row.innerText || '').trim() !== '更多') return;
+				var tries = 0;
+				if (state.moreTimer !== 0) window.clearInterval(state.moreTimer);
+				state.moreTimer = window.setInterval(function () {
+					tries++;
+					var done = !state.native || injectMoreEntry();
+					if (!done && tries <= 25) return;
+					window.clearInterval(state.moreTimer);
+					state.moreTimer = 0;
+					if (state.native && document.querySelector('.cs-more-entry') === null) {
+						ensureNativeChip(state.root);
+					}
+				}, 60);
+			}, true);
+		}
+
+		function clearInjected(root) {
+			if (root !== null) {
+				[].slice.call(root.querySelectorAll('.cs-topbar, .cs-navlist, .cs-pinned')).forEach(function (node) {
+					node.remove();
+				});
+			}
+			[].slice.call(document.querySelectorAll('.cs-searchbox, .cs-native-entry, .cs-more-entry')).forEach(function (node) {
+				node.remove();
+			});
+		}
+
+		function setNative(flag) {
+			var next = flag === true;
+			if (next === state.native) {
+				applyStyles();
+				return;
+			}
+			state.native = next;
+			saveNative(next);
+			var root = state.root || document.querySelector(S.root) || document.querySelector(S.rootFallback);
+			if (next) {
+				if (state.searchBox !== null) closeSearch();
+				if (state.navPopover !== null) {
+					state.navPopover.hidden = true;
+					state.navPopover.classList.remove('has-dock');
+				}
+				closeDocked();
+				clearInjected(root);
+				state.pinnedKey = '';
+				state.promotedKey = '';
+				document.documentElement.removeAttribute('data-cs-search');
+				applyStyles();
+				watchMoreMenu();
+				return;
+			}
+			var chip = document.querySelector('.' + CHIP_CLASS);
+			if (chip !== null) chip.remove();
+			[].slice.call(document.querySelectorAll('.cs-more-entry')).forEach(function (node) {
+				node.remove();
+			});
+			applyStyles();
+			schedule();
+		}
+
 		/* ---------- 编排 ---------- */
 		function ensure() {
 			var root = document.querySelector(S.root) || document.querySelector(S.rootFallback);
 			if (root === null) return;
 			state.root = root;
+			if (state.native) {
+				watchMoreMenu();
+				return;
+			}
 			var logo = root.querySelector(S.logo);
 			if (logo !== null) ensureTopbar(logo);
 			disposeFootMenu(root);
@@ -1112,6 +1297,7 @@ window.__ModuleLoader__.load({
 
 		exports.apply = function apply(ctx) {
 			if (typeof document === 'undefined') return;
+			state.native = loadNative();
 			injectCSS();
 			schedule();
 
@@ -1179,6 +1365,10 @@ window.__ModuleLoader__.load({
 				state.frame = 0;
 				var style = document.getElementById(STYLE_ID);
 				if (style !== null) style.remove();
+				var mini = document.getElementById(MINI_STYLE_ID);
+				if (mini !== null) mini.remove();
+				var chip = document.querySelector('.' + CHIP_CLASS);
+				if (chip !== null) chip.remove();
 				if (state.navPopover !== null) state.navPopover.remove();
 				state.navPopover = null;
 				state.dockedMenus.forEach(function (node) {
