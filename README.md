@@ -65,11 +65,11 @@
 
 > 为什么不做「停用插件即恢复」：宿主在进程启动时就把客户端插件清单注册好了，停用插件后**页面重载无效**（实测停用后重载，注入的 `<style>` 与按钮仍在）。停用要彻底生效只能退出整个 DSH 再打开。所以恢复原生布局走上面这个即时开关。
 
-## 5. 升级提示（浮层最后一行）
+## 5. 升级与更新（浮层最后一行）
 
-浮层最下面一行会查 GitHub Releases：有新版本时显示蓝色的「升级到 vX.Y.Z」并带一个蓝点，点一下把该版本的下载页地址复制到剪贴板，方便去浏览器下载；没有新版本时显示「已是最新 vX.Y.Z」，右侧的「重查」可以手动再查一次。检查结果缓存 12 小时（`localStorage["dsh-compactui:update"]`），不会每次开窗都打 GitHub，离线或请求失败时静默跳过。
+浮层最下面一行查 GitHub Releases：有新版本时显示蓝色「升级到 vX.Y.Z」，点一下由插件的宿主端下载该版本、解包覆盖自身目录，然后自动重载界面，不用手动下载；没有新版本时显示「已是最新 vX.Y.Z」，右侧「重查」可以手动再查一次。检查结果缓存 12 小时（`localStorage["dsh-compactui:update"]`），离线或请求失败时静默跳过；宿主接口不可用（例如网页版）时退回复制下载地址。
 
-> 插件端没法自己装新版本，这一行只负责提醒和给地址。
+> 宿主端接口只在本机回环地址上接收 POST，且要求 `content-type: application/json` 与同源，跨站页面发不进来。装好新版本后，宿主端 `index.js` 的改动要等下一次重启 DSH 才生效；界面部分重载即可。
 
 ## 实现方式
 
@@ -83,9 +83,8 @@
 6. **不挡窗口拖动**：侧栏顶部两行是宿主的窗口拖拽区（`data-window-drag`），拖拽区会吞掉鼠标事件。浮层打开时插件把拖拽区临时改成 `no-drag`，浮层自己也是 `no-drag`，所以浮层周边都点得动，拖动窗口仍然只靠那两行空白处。
 7. **原生 / 紧凑切换**：切原生时移除 `<style id="dsh-compactui:style">`（宿主被隐藏的节点靠 CSS 还原，所以撤样式即复位），同时删掉自己插入的代理节点（品牌行工具条、常驻行、置顶区、搜索框），用一个 `state.native` 标记让 `ensure()` 直接短路、不再重建。原生态下监听侧栏「更多」那一行的 `pointerdown`，等宿主子菜单出现后，克隆一条菜单项挂进同一个菜单容器，文案改为「切回紧凑布局」，点它就反向执行一遍切回紧凑。标记存 `localStorage["dsh-compactui:native"]`，重载后自动恢复上次状态。
 
-8. **升级检查**：`apply()` 里延迟 1.2 秒查一次 `https://api.github.com/repos/ifengz/dsh-compactui/releases/latest`，用内置的 `VERSION`（由 `setver.cjs` 同步改写）做三位版本号比较；结果连同 12 小时时间戳写进 `localStorage["dsh-compactui:update"]`，命中缓存就不再发请求。有新版本时在浮层追加一行蓝色「升级到 vX.Y.Z」，点击用 `navigator.clipboard` 复制 release 地址（失败则退回 `textarea` + `execCommand`）。
-
-
+8. **升级检查与一键更新**：`apply()` 里延迟 1.2 秒查一次 `https://api.github.com/repos/ifengz/dsh-compactui/releases/latest`，用内置 `VERSION`（由 `setver.cjs` 同步改写）做三位版本号比较；结果连同 12 小时时间戳写进 `localStorage["dsh-compactui:update"]`，命中缓存就不再请求。有新版本时在浮层追加一行蓝色「升级到 vX.Y.Z」。
+   点击后先 POST `/api/compactui/upgrade`（宿主端 `index.js` 注册的 `webServer` 路由，仅回环、要求 JSON 与同源），宿主下载 release 的 tgz、用内置 `zlib` 解包并校验包内版本号，备份后用新文件覆盖插件目录，失败自动回滚；客户端收到 `{ok:true}` 后 700ms 重载界面。接口不可用或失败时退回 `navigator.clipboard` 复制下载地址（再降级到 `textarea` + `execCommand`）。
 ## 兼容性
 
 - 开发与验证环境：DSH 桌面版 **0.2.2-rc.1**（Windows 与 macOS 都跑过；macOS 上顶部两行单独压紧，Windows 布局不受影响）。

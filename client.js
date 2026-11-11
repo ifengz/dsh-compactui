@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
 		var MINI_STYLE_ID = PLUGIN_ID + ':mini';
 		var CHIP_CLASS = 'cs-native-entry';
 		/* setver.cjs 会同步改写这一行，升级检查靠它比较版本 */
-		var VERSION = '0.6.19';
+		var VERSION = '0.7.0';
 		var UPDATE_KEY = 'dsh-compactui:update';
 		var UPDATE_API = 'https://api.github.com/repos/ifengz/dsh-compactui/releases/latest';
 		var UPDATE_TTL = 12 * 60 * 60 * 1000;
@@ -762,6 +762,14 @@ window.__ModuleLoader__.load({
 			}
 		}
 
+		function clearUpdate() {
+			try {
+				localStorage.removeItem(UPDATE_KEY);
+			} catch (error) {
+				/* 清不掉就算了 */
+			}
+		}
+
 		function applyUpdate(tag, url) {
 			state.latestTag = tag;
 			state.latestUrl = url;
@@ -909,11 +917,34 @@ window.__ModuleLoader__.load({
 				event.preventDefault();
 				event.stopPropagation();
 				if (state.updateFresh) {
-					copyText(state.latestUrl);
-					var label = updateRow.querySelector('.cs-navitem-label');
-					if (label !== null) label.textContent = '已复制，去浏览器打开';
-					return;
-				}
+	var label = updateRow.querySelector('.cs-navitem-label');
+	if (label !== null) label.textContent = '正在下载并安装…';
+	/* 宿主侧接口：只接受回环请求，下载 release tgz、解包覆盖本插件目录，装好再重载页面 */
+	var done = false;
+	window.fetch('/api/compactui/upgrade', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ tag: state.latestTag, url: state.latestUrl })
+	}).then(function (response) {
+		return response.json().then(function (data) { return { ok: response.ok && data && data.ok === true, data: data }; });
+	}).then(function (result) {
+		if (done) return;
+		if (!result.ok) throw new Error((result.data && result.data.error) || 'upgrade failed');
+		done = true;
+		if (label !== null) label.textContent = '已更新到 v' + String(result.data.version || '') + '，正在重载…';
+		state.latestTag = '';
+		state.updateFresh = false;
+		clearUpdate();
+		window.setTimeout(function () { window.location.reload(); }, 700);
+	}).catch(function () {
+		if (done) return;
+		done = true;
+		/* 宿主接口不可用（例如网页版）时退回复制地址 */
+		copyText(state.latestUrl);
+		if (label !== null) label.textContent = '自动更新失败，已复制地址';
+	});
+	return;
+}
 				var hint = updateRow.querySelector('.cs-navitem-hint');
 				if (hint !== null) hint.textContent = '查询中…';
 				checkUpdate(true);
