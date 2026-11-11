@@ -92,11 +92,11 @@
 dsh plugin --profile web add dsh-compactui
 ```
 
-从本地目录或压缩包：
+从本地目录或压缩包（压缩包从 [Releases](https://github.com/ifengz/dsh-compactUI/releases/latest) 下载对应版本的 `dsh-compactui-<版本号>.tgz`）：
 
 ```bash
 dsh plugin --profile web add file:C:/path/to/dsh-compactui
-dsh plugin --profile web add C:/path/to/dsh-compactui-0.5.11.tgz
+dsh plugin --profile web add C:/path/to/dsh-compactui-<版本号>.tgz
 ```
 
 装完后刷新页面（桌面版在 DevTools 里 `location.reload()`，或重启 DSH）。
