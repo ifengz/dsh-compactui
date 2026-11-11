@@ -159,6 +159,9 @@ window.__ModuleLoader__.load({
 			'.cs-navitem-add:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.10));}',
 			'.cs-navitem-add[disabled]{opacity:.35;cursor:default;color:#9aa1ab;}',
 			'.cs-navitem-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+			'.cs-navsep{height:1px;margin:5px 6px;background:var(--dsw-alias-border-l2,rgba(0,0,0,.10));}',
+			'.cs-navitem.cs-navreload{color:var(--dsw-alias-label-secondary,#5b6472);}',
+			'.cs-navitem.cs-navreload>svg{width:16px;height:16px;}',
 			/* 宿主自带的二级菜单（例如「更多」）被挪到浮层下方：与浮层连成一整块 */
 			'.cs-navpop.has-dock{',
 			'border-bottom-left-radius:0!important;border-bottom-right-radius:0!important;',
@@ -241,6 +244,7 @@ window.__ModuleLoader__.load({
 		var ICON_MINUS = ['M6 12h12'];
 		var ICON_PLUS = ['M12 6v12', 'M6 12h12'];
 		var ICON_CHECK = ['M5 12.5l4.5 4.5L19 7'];
+		var ICON_REFRESH = ['M20 12a8 8 0 1 1-2.6-5.85', 'M20 4v5h-5'];
 
 		var state = {
 			root: null,
@@ -693,6 +697,37 @@ window.__ModuleLoader__.load({
 				item.appendChild(add);
 				pop.appendChild(item);
 			});
+
+			/* 最后一行：重新加载界面（插件装卸后不必关掉整个 DSH） */
+			pop.appendChild(el('div', 'cs-navsep'));
+			var reload = el('div', 'cs-navitem cs-navreload');
+			reload.setAttribute('role', 'button');
+			reload.setAttribute('tabindex', '0');
+			reload.title = '重新加载界面（插件启用/停用后生效）';
+			reload.appendChild(icon(ICON_REFRESH));
+			reload.appendChild(el('span', 'cs-navitem-label', '重新加载界面'));
+			reload.addEventListener('click', function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+				reloadUi();
+			});
+			pop.appendChild(reload);
+		}
+
+		/* 有回合正在跑（发送键变成停止）时先问一句 */
+		function turnRunning() {
+			var buttons = document.querySelectorAll('button');
+			for (var i = 0; i < buttons.length; i += 1) {
+				var b = buttons[i];
+				var text = (b.getAttribute('aria-label') || '') + (b.getAttribute('title') || '');
+				if (/停止|中止|Stop/i.test(text)) return true;
+			}
+			return false;
+		}
+
+		function reloadUi() {
+			if (turnRunning() && !window.confirm('有会话正在运行，重新加载界面会中断当前显示（会话本身不会丢）。继续吗？')) return;
+			window.location.reload();
 		}
 
 		/* 浮层是否"真的开着"：没被本插件定位过、或在视口外，都当作没开，否则点按钮会像没反应 */
