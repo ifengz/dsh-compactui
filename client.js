@@ -14,6 +14,11 @@ window.__ModuleLoader__.load({
 		var NATIVE_KEY = 'dsh-compactui:native';
 		var MINI_STYLE_ID = PLUGIN_ID + ':mini';
 		var CHIP_CLASS = 'cs-native-entry';
+		/* setver.cjs 会同步改写这一行，升级检查靠它比较版本 */
+		var VERSION = '0.6.19';
+		var UPDATE_KEY = 'dsh-compactui:update';
+		var UPDATE_API = 'https://api.github.com/repos/ifengz/dsh-compactui/releases/latest';
+		var UPDATE_TTL = 12 * 60 * 60 * 1000;
 
 		/* 宿主 class 带构建期哈希，全部按稳定局部片段匹配 */
 		var S = {
@@ -166,6 +171,13 @@ window.__ModuleLoader__.load({
 			'.cs-navsep{height:1px;margin:5px 6px;background:var(--dsw-alias-border-l2,rgba(0,0,0,.10));}',
 			'.cs-navitem.cs-navreload{color:var(--dsw-alias-label-secondary,#5b6472);}',
 			'.cs-navitem.cs-navreload>svg{width:16px;height:16px;}',
+			/* 升级提示：有新版走蓝色强调，没有则弱化成提示行 */
+			'.cs-navitem.cs-navitem-update{color:var(--dsw-alias-label-secondary,#5b6472);}',
+			'.cs-navitem.cs-navitem-update>svg{width:16px;height:16px;}',
+			'.cs-navitem.cs-navitem-update.is-fresh{color:#2f6fed;}',
+			'.cs-navitem.cs-navitem-update.is-fresh .cs-navitem-label{font-weight:600;}',
+			'.cs-navitem-hint{margin-left:auto;padding-left:8px;font-size:11px;opacity:.62;white-space:nowrap;}',
+			'.cs-navitem-dot{margin-left:auto;width:6px;height:6px;border-radius:50%;background:#2f6fed;flex:none;}',
 			/* 宿主自带的二级菜单（例如「更多」）被挪到浮层下方：与浮层连成一整块 */
 			'.cs-navpop.has-dock{',
 			'border-bottom-left-radius:0!important;border-bottom-right-radius:0!important;',
@@ -298,6 +310,7 @@ window.__ModuleLoader__.load({
 		var ICON_PLUS = ['M12 6v12', 'M6 12h12'];
 		var ICON_CHECK = ['M5 12.5l4.5 4.5L19 7'];
 		var ICON_GRID = ['M4 5h6v6H4z', 'M14 5h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'];
+		var ICON_UP = ['M12 19V6', 'M6 12l6-6 6 6'];
 
 		var state = {
 			root: null,
@@ -306,6 +319,10 @@ window.__ModuleLoader__.load({
 			native: false,
 			moreHooked: false,
 			moreTimer: 0,
+			latestTag: '',
+			latestUrl: '',
+			updateChecked: false,
+			updateFresh: false,
 			pinnedKey: '',
 			promotedKey: '',
 			dockedMenus: [],
@@ -704,6 +721,109 @@ window.__ModuleLoader__.load({
 			window.setTimeout(settle, 0);
 		}
 
+		/* ---------- 升级检查：GitHub Releases 最新 tag，12 小时缓存 ---------- */
+		function parseVer(text) {
+			var parts = String(text || '').replace(/^v/i, '').split('.');
+			var out = [];
+			for (var i = 0; i < 3; i++) {
+				var n = parseInt(parts[i], 10);
+				out.push(isNaN(n) ? 0 : n);
+			}
+			return out;
+		}
+
+		function cmpVer(a, b) {
+			var x = parseVer(a);
+			var y = parseVer(b);
+			for (var i = 0; i < 3; i++) {
+				if (x[i] > y[i]) return 1;
+				if (x[i] < y[i]) return -1;
+			}
+			return 0;
+		}
+
+		function readUpdate() {
+			try {
+				var raw = localStorage.getItem(UPDATE_KEY);
+				if (raw === null) return null;
+				var data = JSON.parse(raw);
+				if (typeof data.tag !== 'string' || typeof data.ts !== 'number') return null;
+				return data;
+			} catch (error) {
+				return null;
+			}
+		}
+
+		function saveUpdate(tag, url) {
+			try {
+				localStorage.setItem(UPDATE_KEY, JSON.stringify({ tag: tag, url: url, ts: Date.now() }));
+			} catch (error) {
+				/* 存不下就只在本次页面有效 */
+			}
+		}
+
+		function applyUpdate(tag, url) {
+			state.latestTag = tag;
+			state.latestUrl = url;
+			state.updateChecked = true;
+			state.updateFresh = cmpVer(tag, VERSION) > 0;
+		}
+
+		function checkUpdate(force) {
+			var cached = readUpdate();
+			if (cached !== null && (force !== true) && Date.now() - cached.ts < UPDATE_TTL) {
+				applyUpdate(cached.tag, cached.url);
+				return;
+			}
+			var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+			var timer = window.setTimeout(function () {
+				if (ctrl !== null) ctrl.abort();
+			}, 4000);
+			fetch(UPDATE_API, ctrl === null ? {} : { signal: ctrl.signal, cache: 'no-store' })
+				.then(function (res) {
+					if (!res.ok) throw new Error('HTTP ' + res.status);
+					return res.json();
+				})
+				.then(function (data) {
+					window.clearTimeout(timer);
+					var tag = String(data.tag_name || data.name || '');
+					if (tag === '') throw new Error('no tag');
+					var url = String(data.html_url || 'https://github.com/ifengz/dsh-compactui/releases/tag/' + tag);
+					saveUpdate(tag, url);
+					applyUpdate(tag, url);
+					rebuildNav();
+				})
+				.catch(function () {
+					window.clearTimeout(timer);
+					state.updateChecked = true;
+					rebuildNav();
+				});
+		}
+
+		function copyText(text) {
+			try {
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(text);
+					return true;
+				}
+			} catch (error) {
+				/* 走下面的兜底 */
+			}
+			try {
+				var box = document.createElement('textarea');
+				box.value = text;
+				box.style.position = 'fixed';
+				box.style.opacity = '0';
+				document.body.appendChild(box);
+				box.select();
+				document.execCommand('copy');
+				box.remove();
+				return true;
+			} catch (error) {
+				return false;
+			}
+		}
+
 		function rebuildNav() {
 			var pop = state.navPopover;
 			if (pop === null) return;
@@ -769,6 +889,36 @@ window.__ModuleLoader__.load({
 				setNative(true);
 			});
 			pop.appendChild(layout);
+
+			/* 最后一行：升级提示（放在「切换为原生布局」下面） */
+			var updateRow = el('div', 'cs-navitem cs-navitem-update');
+			updateRow.setAttribute('role', 'button');
+			updateRow.setAttribute('tabindex', '0');
+			updateRow.appendChild(icon(ICON_UP));
+			if (state.updateFresh) {
+				updateRow.classList.add('is-fresh');
+				updateRow.title = '有新版本 ' + state.latestTag + '，点一下复制下载地址';
+				updateRow.appendChild(el('span', 'cs-navitem-label', '升级到 ' + state.latestTag));
+				updateRow.appendChild(el('span', 'cs-navitem-dot', ''));
+			} else {
+				updateRow.title = '检查 dsh-compactui 是否有新版本';
+				updateRow.appendChild(el('span', 'cs-navitem-label', state.updateChecked ? '已是最新 v' + VERSION : '检查更新'));
+				updateRow.appendChild(el('span', 'cs-navitem-hint', state.updateChecked ? '重查' : '向 GitHub 查询'));
+			}
+			updateRow.addEventListener('click', function (event) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (state.updateFresh) {
+					copyText(state.latestUrl);
+					var label = updateRow.querySelector('.cs-navitem-label');
+					if (label !== null) label.textContent = '已复制，去浏览器打开';
+					return;
+				}
+				var hint = updateRow.querySelector('.cs-navitem-hint');
+				if (hint !== null) hint.textContent = '查询中…';
+				checkUpdate(true);
+			});
+			pop.appendChild(updateRow);
 		}
 
 		/* 浮层是否"真的开着"：没被本插件定位过、或在视口外，都当作没开，否则点按钮会像没反应 */
@@ -1300,6 +1450,8 @@ window.__ModuleLoader__.load({
 			state.native = loadNative();
 			injectCSS();
 			schedule();
+			/* 升级检查只有浮层里能看到，原生布局下不必发请求 */
+			if (!state.native) window.setTimeout(function () { checkUpdate(false); }, 1200);
 
 			state.observer = new MutationObserver(function () {
 				schedule();
