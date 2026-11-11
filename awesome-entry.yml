@@ -1,11 +1,11 @@
-# 投稿文件：data/plugins/ifengz__dsh-compactUI.yml
-url: https://github.com/ifengz/dsh-compactUI
-name: ifengz/dsh-compactUI
+# 投稿文件：data/plugins/ifengz__dsh-compactui.yml
+url: https://github.com/ifengz/dsh-compactui
+name: ifengz/dsh-compactui
 category: ui
 description:
-  en: "Codex-style compact sidebar for DSH: one top row holds the logo, an inline session search and the menu button; the plugin, market and automation entries fold into a popover where a + pins them back into the sidebar; pinned sessions get a collapsible section that survives collapsed projects. Client-side only, no dependencies."
-  zh: "把 DSH 侧栏改成 Codex 风格紧凑布局：顶部一行放 Logo、内联会话搜索和菜单按钮；插件、市场、自动化入口收进浮层，点 + 就加回侧栏；置顶会话单独成块，项目折叠也不丢。纯前端实现、零依赖。"
+  en: "Codex-style compact sidebar for DSH: one top row holds the logo, an inline session search and the menu button; the plugin, market and automation entries fold into a popover where a + pins them back into the sidebar; pinned sessions get a collapsible section that survives collapsed projects. Includes a Reload UI entry so plugin enable/disable takes effect without restarting the app. Client-side only, no dependencies."
+  zh: "把 DSH 侧栏改成 Codex 风格紧凑布局：顶部一行放 Logo、内联会话搜索和菜单按钮；插件、市场、自动化入口收进浮层，点 + 就加回侧栏；置顶会话单独成块，项目折叠也不丢。另带「重新加载界面」，停用/启用插件后不用重启应用。纯前端实现、零依赖。"
 # 可选：GitHub 托管的方形位图，约 96px 显示
-# icon: https://raw.githubusercontent.com/ifengz/dsh-compactUI/main/assets/icon-180.png
+# icon: https://raw.githubusercontent.com/ifengz/dsh-compactui/main/assets/icon-180.png
 # 预构建 tarball（GitHub Release 托管）
-tarball: https://github.com/ifengz/dsh-compactUI/releases/download/v0.6.10/dsh-compactui-0.6.10.tgz
+tarball: https://github.com/ifengz/dsh-compactui/releases/download/v0.6.11/dsh-compactui-0.6.11.tgz
