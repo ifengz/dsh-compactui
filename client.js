@@ -13,7 +13,9 @@ window.__ModuleLoader__.load({
 
 		/* 宿主 class 带构建期哈希，全部按稳定局部片段匹配 */
 		var S = {
-			root: 'div:has(> nav[class*="_panelList"])',
+			/* 0.2.2-rc.2 起 logoRow 移出了 panelList 所在的滚动区，按 logoRow 认侧栏根 */
+			root: 'div:has(> [class*="_logoRow"])',
+			rootFallback: 'div:has(> nav[class*="_panelList"])',
 			logo: '[class*="_logoRow"]',
 			nav: 'nav[class*="_panelList"]',
 			panelRow: '[class*="_panelRow"]',
@@ -391,6 +393,8 @@ window.__ModuleLoader__.load({
 		function ensureNavPopover() {
 			if (state.navPopover !== null && state.navPopover.isConnected) return state.navPopover;
 			var pop = el('div', 'cs-navpop');
+			/* 0.2.2-rc.2 起 macOS 要求浮层显式声明非拖拽区域 */
+			pop.setAttribute('data-window-drag-exclude', 'true');
 			state.activeLabel = '';
 			pop.hidden = true;
 			document.body.appendChild(pop);
@@ -1006,7 +1010,7 @@ window.__ModuleLoader__.load({
 
 		/* ---------- 编排 ---------- */
 		function ensure() {
-			var root = document.querySelector(S.root);
+			var root = document.querySelector(S.root) || document.querySelector(S.rootFallback);
 			if (root === null) return;
 			state.root = root;
 			var logo = root.querySelector(S.logo);

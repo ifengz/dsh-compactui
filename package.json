@@ -1,6 +1,6 @@
 {
   "name": "dsh-compactui",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "Codex-style compact sidebar for DeepSeek Harness: big logo with inline search, new chat, a collapsible pinned section that survives collapsed projects, workspaces, and the plugin/market/automation entries folded into a small popover.",
   "keywords": [
     "dsh",

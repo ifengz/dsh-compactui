@@ -1,11 +1,11 @@
-# 鎶曠鏂囦欢锛歞ata/plugins/ifengz__dsh-compactUI.yml
+# 投稿文件：data/plugins/ifengz__dsh-compactUI.yml
 url: https://github.com/ifengz/dsh-compactUI
 name: ifengz/dsh-compactUI
 category: ui
 description:
-  en: Codex-style compact DSH sidebar with inline session search, a collapsible pinned section that persists across collapsed projects, and plugin/market/automation entries folded into a popover.
-  zh: 鎶?DSH 渚ф爮鏀规垚 Codex 椋庢牸绱у噾甯冨眬锛氬唴鑱斾細璇濇悳绱€佹姌鍙犻」鐩篃涓嶄涪鐨勭疆椤跺尯銆佹彃浠朵笌甯傚満鍏ュ彛鏀惰繘娴眰鑿滃崟銆?
-# 鍙€夛細GitHub 鎵樼鐨勬柟鍦颁綅鍥撅紝绾?96px 鏄剧ず
+  en: "Codex-style compact sidebar for DSH: one top row holds the logo, an inline session search and the menu button; the plugin, market and automation entries fold into a popover where a + pins them back into the sidebar; pinned sessions get a collapsible section that survives collapsed projects. Client-side only, no dependencies."
+  zh: "把 DSH 侧栏改成 Codex 风格紧凑布局：顶部一行放 Logo、内联会话搜索和菜单按钮；插件、市场、自动化入口收进浮层，点 + 就加回侧栏；置顶会话单独成块，项目折叠也不丢。纯前端实现、零依赖。"
+# 可选：GitHub 托管的方形位图，约 96px 显示
 # icon: https://raw.githubusercontent.com/ifengz/dsh-compactUI/main/assets/icon-180.png
-# 棰勬瀯寤?tarball锛圙itHub Release 鎵樼锛?
-tarball: https://github.com/ifengz/dsh-compactUI/releases/download/v0.6.9/dsh-compactui-0.6.9.tgz
+# 预构建 tarball（GitHub Release 托管）
+tarball: https://github.com/ifengz/dsh-compactUI/releases/download/v0.6.10/dsh-compactui-0.6.10.tgz
