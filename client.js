@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
 		var MINI_STYLE_ID = PLUGIN_ID + ':mini';
 		var CHIP_CLASS = 'cs-native-entry';
 		/* setver.cjs 会同步改写这一行，升级检查靠它比较版本 */
-		var VERSION = '0.7.1';
+		var VERSION = '0.7.2';
 		var UPDATE_KEY = 'dsh-compactui:update';
 		var UPDATE_API = 'https://api.github.com/repos/ifengz/dsh-compactui/releases/latest';
 		var UPDATE_TTL = 12 * 60 * 60 * 1000;
@@ -748,6 +748,8 @@ window.__ModuleLoader__.load({
 				if (raw === null) return null;
 				var data = JSON.parse(raw);
 				if (typeof data.tag !== 'string' || typeof data.ts !== 'number') return null;
+				/* 旧版本缓存的是 release 页面地址，宿主不认，直接丢弃重查 */
+				if (typeof data.url !== 'string' || !/releases\/download\//i.test(data.url)) return null;
 				return data;
 			} catch (error) {
 				return null;
@@ -777,6 +779,19 @@ window.__ModuleLoader__.load({
 			state.updateFresh = cmpVer(tag, VERSION) > 0;
 		}
 
+		/* 宿主只接受 release 资产地址（…/releases/download/<tag>/<file>.tgz）；
+		   API 返回的 html_url 是 release 页面地址，直接拿去用会被判 untrusted */
+		function pickAssetUrl(data, tag) {
+			var assets = data && data.assets;
+			if (Array.isArray(assets)) {
+				for (var i = 0; i < assets.length; i++) {
+					var candidate = String((assets[i] && assets[i].browser_download_url) || '');
+					if (/^https:\/\/github\.com\//i.test(candidate) && /\.tgz$/i.test(candidate)) return candidate;
+				}
+			}
+			return 'https://github.com/ifengz/dsh-compactUI/releases/download/' + tag + '/dsh-compactui-' + String(tag).replace(/^v/i, '') + '.tgz';
+		}
+
 		function checkUpdate(force) {
 			var cached = readUpdate();
 			if (cached !== null && (force !== true) && Date.now() - cached.ts < UPDATE_TTL) {
@@ -796,7 +811,7 @@ window.__ModuleLoader__.load({
 					window.clearTimeout(timer);
 					var tag = String(data.tag_name || data.name || '');
 					if (tag === '') throw new Error('no tag');
-					var url = String(data.html_url || 'https://github.com/ifengz/dsh-compactui/releases/tag/' + tag);
+					var url = pickAssetUrl(data, tag);
 					saveUpdate(tag, url);
 					applyUpdate(tag, url);
 					rebuildNav();

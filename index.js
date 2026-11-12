@@ -98,8 +98,9 @@ function fetchBuffer(url, redirects = 0) {
 
 export async function installRelease(tag, url) {
 	if (!TAG_RE.test(tag)) throw new Error('invalid tag');
-	const expected = `${DOWNLOAD_PREFIX}${tag}/`;
-	if (typeof url !== 'string' || !url.startsWith(expected)) throw new Error('untrusted download url');
+	// GitHub 把仓库名按 canonical 大小写下发（dsh-compactUI），这里按小写比对前缀
+	const expected = `${DOWNLOAD_PREFIX}${tag}/`.toLowerCase();
+	if (typeof url !== 'string' || !url.toLowerCase().startsWith(expected)) throw new Error('untrusted download url');
 	const archive = gunzipSync(await fetchBuffer(url));
 	const files = parseTar(archive);
 	const manifest = files.get('package/package.json');
