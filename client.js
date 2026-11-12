@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
 		var MINI_STYLE_ID = PLUGIN_ID + ':mini';
 		var CHIP_CLASS = 'cs-native-entry';
 		/* setver.cjs 会同步改写这一行，升级检查靠它比较版本 */
-		var VERSION = '0.7.0';
+		var VERSION = '0.7.1';
 		var UPDATE_KEY = 'dsh-compactui:update';
 		var UPDATE_API = 'https://api.github.com/repos/ifengz/dsh-compactui/releases/latest';
 		var UPDATE_TTL = 12 * 60 * 60 * 1000;
@@ -1319,16 +1319,18 @@ window.__ModuleLoader__.load({
 			else item.textContent = '切回紧凑布局';
 			item.setAttribute('aria-label', '切回紧凑布局');
 			item.setAttribute('title', '切回紧凑布局');
-			item.addEventListener('click', function (event) {
+			var switched = false;
+			var leaveNative = function (event) {
+				if (switched) return;
+				switched = true;
 				event.preventDefault();
 				event.stopPropagation();
-				document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 				setNative(false);
-			});
-			item.addEventListener('pointerdown', function (event) {
-				event.preventDefault();
-				event.stopPropagation();
-			});
+				document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+				window.setTimeout(function () { switched = false; }, 500);
+			};
+			item.addEventListener('pointerdown', leaveNative);
+			item.addEventListener('click', leaveNative);
 			clone.addEventListener('pointerdown', function (event) {
 				event.stopPropagation();
 			});
